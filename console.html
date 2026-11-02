@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analysis Console — Find the Chocolate</title>
+<link rel="stylesheet" href="assets/css/styles.css">
+<style>
+  #app { justify-content: flex-start; align-items: stretch; padding: 20px 16px 60px; }
+  .wrap { max-width: 1100px; margin: 0 auto; width: 100%; }
+  .card { background:#fff; border:2px solid var(--border); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
+  .card h3 { margin:0 0 3px; font-size:18px; }
+  .card .sub { font-size:13px; color:var(--muted); margin:0 0 12px; }
+  .drop { border:3px dashed var(--border); border-radius:12px; padding:24px; text-align:center; color:var(--muted); background:#fff; cursor:pointer; }
+  .drop.over { border-color:var(--accent); background:#FFF9EC; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  th,td { padding:6px 7px; border-bottom:1px solid #EFE7D8; text-align:left; white-space:nowrap; }
+  th { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); position:sticky; top:0; background:#fff; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .scroll { overflow-x:auto; max-height:460px; overflow-y:auto; }
+  .flag { padding:9px 12px; border-radius:8px; margin-bottom:7px; font-size:14px; }
+  .flag.ok{background:#F0F8F2;border-left:6px solid var(--good)} .flag.warn{background:#FFF6E8;border-left:6px solid #C98A0B} .flag.bad{background:#FDF1EE;border-left:6px solid var(--bad)}
+  .big { display:flex; flex-wrap:wrap; gap:12px; }
+  .stat { flex:1 1 150px; border:2px solid var(--border); border-radius:10px; padding:11px 13px; }
+  .stat .v { font-size:25px; font-weight:700; line-height:1.15; }
+  .stat .k { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .bar { height:19px; background:#EFE7D8; border-radius:5px; overflow:hidden; margin:3px 0; }
+  .bar span { display:block; height:100%; background:var(--accent); }
+  .brow { display:flex; justify-content:space-between; font-size:14px; margin-top:9px; }
+  .interp { font-size:13.5px; color:var(--muted); font-style:italic; margin-top:9px; }
+  .tabs { display:flex; gap:8px; margin-bottom:14px; border-bottom:2px solid var(--border); }
+  .tab { padding:10px 18px; font-size:15px; font-family:inherit; font-weight:600; cursor:pointer;
+         background:none; border:none; border-bottom:3px solid transparent; color:var(--muted); }
+  .tab.on { color:var(--ink); border-bottom-color:var(--accent); }
+  .tab:focus-visible { outline:3px solid var(--focus); }
+  .strip { display:flex; gap:3px; flex-wrap:wrap; align-items:center; margin:8px 0; }
+  .strip .cell { width:34px; height:38px; border-radius:5px; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; }
+  .strip .sep { width:2px; height:34px; background:var(--border); margin:0 5px; }
+  .cell.swwin{background:#2E7D4F} .cell.swlose{background:#8FBFA3}
+  .cell.kpwin{background:#B8860B} .cell.kplose{background:#DDCB92; color:#5A4A16}
+  .cell small { font-size:9px; font-weight:600; opacity:.9 }
+  .legend { font-size:12px; color:var(--muted); display:flex; gap:14px; flex-wrap:wrap; margin-top:4px }
+  .legend i { display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:4px; vertical-align:-1px }
+  .kv { display:flex; flex-wrap:wrap; gap:10px 26px; font-size:14px; margin-bottom:10px }
+  .kv div span { color:var(--muted) }
+  .tl { display:flex; align-items:center; gap:7px; font-size:12px; margin:2px 0 }
+  .tl .lab { width:52px; color:var(--muted) }
+  .tl .tb { height:11px; border-radius:3px; background:var(--accent) }
+  .tl .tb.ev { background:#7A93B8 }
+  .cmp { font-size:13px; padding:3px 0; border-bottom:1px solid #EFE7D8; display:flex; justify-content:space-between }
+  .narr { font-size:12.5px; color:var(--muted); line-height:1.45 }
+  .filelist { font-size:13px; color:var(--muted); margin-top:9px; }
+  .pill { display:inline-block; padding:1px 8px; border-radius:99px; font-size:12px; font-weight:600; }
+  .pill.y{background:#FDF1EE;color:var(--bad)} .pill.n{background:#F0F8F2;color:var(--good)}
+</style>
+</head>
+<body>
+<div id="app"><div class="wrap">
+  <h1>Analysis Console</h1>
+  <p class="muted">Find the Chocolate — v2. Runs entirely offline. Nothing is uploaded anywhere.</p>
+
+  <div class="card">
+    <div class="drop" id="drop">
+      <strong>Click to choose session files</strong><br>
+      <span>or drag several .json files here at once</span>
+      <input type="file" id="file" accept=".json,.txt" multiple hidden>
+    </div>
+    <div class="filelist" id="filelist"></div>
+    <p id="err" class="muted" style="color:var(--bad)"></p>
+  </div>
+
+  <div class="card">
+    <h3>Or paste session codes</h3>
+    <p class="sub">Paste one or more session codes copied from the Google Form. They can be on separate lines or run together &mdash; each is loaded separately, exactly like an uploaded file.</p>
+    <textarea id="pastebox" style="width:100%;height:110px;font-family:ui-monospace,monospace;font-size:11px;padding:9px;border:2px solid var(--border);border-radius:9px;background:#FBF8F2" placeholder='{"assessment_metadata":{...}}&#10;{"assessment_metadata":{...}}'></textarea>
+    <button class="btn secondary" id="loadpaste">Load pasted data</button>
+    <p id="perr" class="muted"></p>
+  </div>
+
+  <div class="card">
+    <button class="btn" id="csv" style="display:none">Download CSV for Excel</button>
+    <button class="btn secondary" id="clear" style="display:none">Clear all loaded sessions</button>
+  </div>
+
+  <div id="tabbar" style="display:none">
+    <div class="tabs">
+      <button class="tab on" id="tab-group">Group overview</button>
+      <button class="tab" id="tab-ind">Individual student</button>
+    </div>
+  </div>
+  <div id="out"></div>
+  <div id="indview" style="display:none"></div>
+</div></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let SESSIONS = [];
+
+/* ---------------- input ---------------- */
+$('drop').addEventListener('click', () => $('file').click());
+$('file').addEventListener('change', e => readFiles(e.target.files));
+['dragover','dragenter'].forEach(ev => $('drop').addEventListener(ev, e => { e.preventDefault(); $('drop').classList.add('over'); }));
+['dragleave','drop'].forEach(ev => $('drop').addEventListener(ev, e => { e.preventDefault(); $('drop').classList.remove('over'); }));
+$('drop').addEventListener('drop', e => readFiles(e.dataTransfer.files));
+
+function readFiles(files) {
+  $('err').textContent = '';
+  const list = Array.from(files);
+  let pending = list.length, bad = [];
+  if (!pending) return;
+  list.forEach(f => {
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const d = JSON.parse(r.result);
+        if (!d.detailed_trials) throw new Error('no trials');
+        d.__file = f.name;
+        SESSIONS.push(d);
+      } catch (e) { bad.push(f.name); }
+      if (--pending === 0) finish(bad);
+    };
+    r.readAsText(f);
+  });
+}
+
+/* Pull out top-level JSON objects by tracking brace depth, so codes that
+   are pasted back-to-back with no separator still split correctly.
+   Braces inside strings are ignored. */
+function extractObjects(text) {
+  const found = [];
+  let depth = 0, start = -1, inStr = false, esc = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') { inStr = true; continue; }
+    if (c === '{') { if (depth === 0) start = i; depth++; }
+    else if (c === '}') {
+      depth--;
+      if (depth === 0 && start >= 0) { found.push(text.slice(start, i + 1)); start = -1; }
+      if (depth < 0) depth = 0;
+    }
+  }
+  return found;
+}
+
+$('loadpaste').addEventListener('click', () => {
+  const raw = $('pastebox').value.trim();
+  $('perr').style.color = 'var(--bad)';
+  if (!raw) { $('perr').textContent = 'Nothing pasted yet.'; return; }
+
+  let chunks = [];
+  try {
+    const whole = JSON.parse(raw);
+    chunks = Array.isArray(whole) ? whole : [whole];
+  } catch (e) {
+    chunks = extractObjects(raw).map(str => { try { return JSON.parse(str); } catch (e2) { return null; } });
+  }
+
+  let ok = 0, bad = 0;
+  chunks.forEach((d, i) => {
+    if (d && d.detailed_trials) { d.__file = 'pasted #' + (i + 1); SESSIONS.push(d); ok++; }
+    else bad++;
+  });
+
+  if (!ok) { $('perr').textContent = 'Could not read any session from that text. Check the whole code was copied.'; return; }
+  $('perr').style.color = 'var(--muted)';
+  $('perr').textContent = ok + ' session(s) added from pasted text' + (bad ? ', ' + bad + ' could not be read' : '') + '.';
+  $('pastebox').value = '';
+  finish([]);
+});
+
+$('clear').addEventListener('click', () => {
+  SESSIONS = [];
+  $('filelist').textContent = ''; $('perr').textContent = '';
+  $('csv').style.display = 'none'; $('clear').style.display = 'none';
+  $('tabbar').style.display = 'none';
+  $('out').innerHTML = ''; $('indview').innerHTML = ''; showTab('group');
+});
+
+function finish(bad) {
+  // de-duplicate if the same session file is added twice
+  const seen = {};
+  SESSIONS = SESSIONS.filter(s => {
+    const id = (s.assessment_metadata || {}).session_id || s.__file;
+    if (seen[id]) return false; seen[id] = 1; return true;
+  });
+  $('filelist').textContent = SESSIONS.length + ' session(s) loaded in total' + (bad.length ? ' · could not read: ' + bad.join(', ') : '');
+  $('csv').style.display = SESSIONS.length ? 'block' : 'none';
+  $('clear').style.display = SESSIONS.length ? 'block' : 'none';
+  $('tabbar').style.display = SESSIONS.length ? 'block' : 'none';
+  IND_INDEX = 0;
+  render();
+  if ($('indview').style.display !== 'none') renderIndividualShell();
+}
+
+/* ---------------- CSV (UTF-8 BOM so Excel shows Indic text correctly) ---------------- */
+const COLUMNS = [
+  ['session_id', s => s.meta.session_id],
+  ['student_name', s => s.meta.student_name],
+  ['school_name', s => s.meta.school_name],
+  ['class', s => s.meta.class_level],
+  ['gender', s => s.meta.gender],
+  ['language', s => s.meta.language_selected],
+  ['implementer', s => s.meta.implementer_name],
+  ['date', s => s.meta.timestamp_completed ? new Date(s.meta.timestamp_completed).toISOString().slice(0,10) : ''],
+  ['trial_index', (s,t) => t.trial_index],
+  ['block', (s,t) => t.block],
+  ['prize_index', (s,t) => t.prize_index],
+  ['initial_choice', (s,t) => t.initial_choice],
+  ['opened_index', (s,t) => t.opened_index],
+  ['alternative_index', (s,t) => t.alternative_index],
+  ['final_choice', (s,t) => t.final_choice],
+  ['is_switch', (s,t) => t.is_switch === null ? '' : (t.is_switch ? 1 : 0)],
+  ['switch_direction', (s,t) => t.switch_direction || ''],
+  ['colour_pos1', (s,t) => t.colour_map ? t.colour_map[0] : ''],
+  ['colour_pos2', (s,t) => t.colour_map ? t.colour_map[1] : ''],
+  ['colour_pos3', (s,t) => t.colour_map ? t.colour_map[2] : ''],
+  ['initial_colour', (s,t) => t.initial_colour || ''],
+  ['final_colour', (s,t) => t.final_colour || ''],
+  ['authority_shown', (s,t) => t.authority_shown ? 1 : 0],
+  ['authority_compliant', (s,t) => t.authority_compliant === null ? '' : (t.authority_compliant ? 1 : 0)],
+  ['thinking_time_ms', (s,t) => t.thinking_time],
+  ['evaluation_time_ms', (s,t) => t.evaluation_time],
+  ['rapid_decision', (s,t) => t.is_unusually_rapid_decision ? 1 : 0],
+  ['explanation_screen_ms', (s,t) => t.explanation_screen_duration_ms],
+  ['switch_was_optimal', (s,t) => t.switch_was_optimal === null || t.switch_was_optimal === undefined ? '' : (t.switch_was_optimal ? 1 : 0)],
+  ['chose_optimally', (s,t) => t.chose_optimally === null || t.chose_optimally === undefined ? '' : (t.chose_optimally ? 1 : 0)],
+  ['trial_outcome', (s,t) => t.trial_outcome],
+  ['narrative', (s,t) => t.narrative || ''],
+  ['sess_switch_rate_pre', s => s.agg.switch_rate_normal_pre],
+  ['sess_switch_rate_colour', s => s.agg.switch_rate_colour],
+  ['sess_switch_rate_authority', s => s.agg.switch_rate_authority],
+  ['sess_switch_rate_post', s => s.agg.switch_rate_normal_post],
+  ['sess_learning_shift', s => s.agg.learning_shift],
+  ['sess_authority_compliance', s => s.agg.authority_compliance_rate],
+  ['sess_correct_responses', s => s.agg.correct_responses],
+  ['sess_total_wins', s => s.agg.total_wins],
+  ['sess_accuracy_rate', s => s.agg.accuracy_rate],
+  ['sess_win_rate_when_switched', s => s.agg.win_rate_when_switched],
+  ['sess_win_rate_when_kept', s => s.agg.win_rate_when_kept],
+  ['sess_optimal_choice_rate', s => s.agg.optimal_choice_rate],
+  ['sess_assertion_failures', s => (s.raw.integrity || {}).assertion_failures]
+];
+
+$('csv').addEventListener('click', () => {
+  const rows = [COLUMNS.map(c => c[0])];
+  SESSIONS.forEach(raw => {
+    const s = { meta: raw.assessment_metadata || {}, agg: raw.aggregate_metrics || {}, raw: raw };
+    raw.detailed_trials.forEach(t => rows.push(COLUMNS.map(c => {
+      const v = c[1](s, t);
+      return v === undefined || v === null ? '' : v;
+    })));
+  });
+  const csv = rows.map(r => r.map(cell => {
+    const v = String(cell);
+    return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  }).join(',')).join('\r\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'chocolate_game_data_' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+});
+
+/* ---------------- analysis ---------------- */
+function render() {
+  const out = $('out'); out.innerHTML = '';
+  if (!SESSIONS.length) return;
+  const add = html => { const d = document.createElement('div'); d.innerHTML = html; out.appendChild(d.firstElementChild); };
+
+  const allTrials = SESSIONS.flatMap(s => s.detailed_trials);
+  const N = SESSIONS.length;
+  const rate = (n,d) => d ? n/d : null;
+  const pct = v => v === null ? '—' : (v*100).toFixed(0) + '%';
+  const sw = arr => rate(arr.filter(x => x.is_switch).length, arr.length);
+  const blk = b => allTrials.filter(x => x.block === b);
+
+  const pre = blk('NORMAL_PRE'), col = blk('COLOUR'), auth = blk('AUTHORITY'), post = blk('NORMAL_POST');
+  const sPre = sw(pre), sCol = sw(col), sAuth = sw(auth), sPost = sw(post);
+
+  /* --- quality --- */
+  const asserts = SESSIONS.reduce((a,s) => a + ((s.integrity||{}).assertion_failures||0), 0);
+  const rapid = allTrials.filter(x => x.is_unusually_rapid_decision).length;
+  const incomplete = SESSIONS.filter(s => s.detailed_trials.length < 12).length;
+  let f = '';
+  f += asserts ? `<div class="flag bad"><strong>${asserts} host-integrity failure(s).</strong> Exclude the affected sessions.</div>`
+              : `<div class="flag ok"><strong>Host integrity clean</strong> across all ${N} session(s).</div>`;
+  f += rapid > allTrials.length * 0.25
+      ? `<div class="flag bad"><strong>${rapid} of ${allTrials.length} decisions under 1 second.</strong> Widespread click-through — switching rates are unreliable.</div>`
+      : rapid ? `<div class="flag warn"><strong>${rapid} decision(s) under 1 second</strong> across all sessions. Check these against the teacher's notes.</div>`
+              : `<div class="flag ok"><strong>All decisions took over a second.</strong></div>`;
+  if (incomplete) f += `<div class="flag warn">${incomplete} session(s) have fewer than 12 trials.</div>`;
+  f += N < 20 ? `<div class="flag warn"><strong>${N} session(s) loaded.</strong> Colour and authority effects are group-level findings — with three trials per block per child, individual scores are not interpretable. Aim for a substantially larger sample before drawing conclusions.</div>` : '';
+  add(`<div class="card"><h3>1 · Data quality</h3><p class="sub">Read this before anything below.</p>${f}</div>`);
+
+  /* --- headline --- */
+  add(`<div class="card"><h3>2 · Overall</h3><p class="sub">Switching is the better strategy in every round: it wins two times out of three.</p>
+    <div class="big">
+      <div class="stat"><div class="v">${N}</div><div class="k">students</div></div>
+      <div class="stat"><div class="v">${allTrials.length}</div><div class="k">trials</div></div>
+      <div class="stat"><div class="v">${pct(sw(allTrials))}</div><div class="k">switch rate</div></div>
+      <div class="stat"><div class="v">${pct(rate(allTrials.filter(x=>x.trial_outcome==='WIN').length, allTrials.length))}</div><div class="k">win rate</div></div>
+    </div></div>`);
+
+  /* --- learning --- */
+  const shift = (sPre !== null && sPost !== null) ? sPost - sPre : null;
+  add(`<div class="card"><h3>3 · Learning (first three rounds vs last three)</h3>
+    <p class="sub">Did switching increase after the middle blocks? This is the pre/post comparison.</p>
+    ${barRow('Rounds 1–3 (before)', sPre, pre.length)}
+    ${barRow('Rounds 10–12 (after)', sPost, post.length)}
+    <div class="brow"><span>Change</span><strong>${shift===null?'—':(shift>0?'+':'')+(shift*100).toFixed(0)+' points'}</strong></div>
+    <p class="interp">${shift===null?'Not enough data.':shift>0.15?'Switching rose noticeably by the end — consistent with learning from outcome feedback.':shift<-0.15?'Switching fell by the end. Worth checking whether the authority block had a lasting effect.':'Little change between the first and last blocks.'}</p></div>`);
+
+  /* --- authority --- */
+  const comp = rate(auth.filter(x => x.authority_compliant === true).length, auth.length);
+  add(`<div class="card"><h3>4 · Authority effect</h3>
+    <p class="sub">The implementer's photo appeared with a fixed instruction to keep the first box. Compliance means the student kept it.</p>
+    ${barRow('Switch rate, normal rounds (1–3)', sPre, pre.length)}
+    ${barRow('Switch rate, authority rounds (7–9)', sAuth, auth.length)}
+    <div class="brow"><span>Compliance with the advice</span><strong>${pct(comp)}</strong></div>
+    <p class="interp">${(sPre!==null&&sAuth!==null)?(sPre-sAuth>0.15?'Switching dropped when the authority figure appeared — evidence the advice influenced decisions.':'Switching held up under the authority figure — little sign of compliance pressure at group level.'):'Not enough data.'}</p></div>`);
+
+  /* --- colour --- */
+  const counts = { RED:0, GREEN:0, BLUE:0 }, posCounts = { RED:0, GREEN:0, BLUE:0 };
+  col.forEach(x => { if (x.final_colour) counts[x.final_colour]++; if (x.initial_colour) posCounts[x.initial_colour]++; });
+  const totalC = counts.RED + counts.GREEN + counts.BLUE;
+  add(`<div class="card"><h3>5 · Colour effect</h3>
+    <p class="sub">Red, green and blue were shuffled into different positions each round. If colour had no pull, each would be picked about a third of the time.</p>
+    ${barRow('Red chosen (final)', rate(counts.RED,totalC), counts.RED)}
+    ${barRow('Green chosen (final)', rate(counts.GREEN,totalC), counts.GREEN)}
+    ${barRow('Blue chosen (final)', rate(counts.BLUE,totalC), counts.BLUE)}
+    <div class="brow"><span>Switch rate in colour rounds</span><strong>${pct(sCol)}</strong> <span class="muted">vs ${pct(sPre)} in normal rounds</span></div>
+    <p class="interp">${totalC < 30 ? 'Too few colour trials to say anything yet — this needs a large sample.' : 'Compare each bar against 33%. A clear departure suggests colour pulled choices; similar bars suggest it did not.'}</p></div>`);
+
+  /* --- position bias --- */
+  const swAll = allTrials.filter(x => x.is_switch);
+  const lft = swAll.filter(x => x.switch_direction === 'LEFT').length;
+  add(`<div class="card"><h3>6 · Position check</h3>
+    <p class="sub">Since the keep/change buttons were removed, students tap a box at a screen position. This checks for a left/right pull.</p>
+    ${barRow('Switched to a box on the left', rate(lft, swAll.length), lft)}
+    ${barRow('Switched to a box on the right', rate(swAll.length-lft, swAll.length), swAll.length-lft)}
+    <p class="interp">Should sit near 50/50. A strong lean means position, not reasoning, may be driving some switches.</p></div>`);
+
+  /* --- per student --- */
+  let rows = '';
+  SESSIONS.forEach(s => {
+    const m = s.assessment_metadata||{}, a = s.aggregate_metrics||{};
+    rows += `<tr><td>${esc(m.student_name)}</td><td>${esc(m.school_name)}</td><td class="num">${esc(m.class_level)}</td>
+      <td>${esc(m.gender)}</td><td>${esc(m.language_selected)}</td>
+      <td class="num">${pct(a.switch_rate_normal_pre)}</td><td class="num">${pct(a.switch_rate_colour)}</td>
+      <td class="num">${pct(a.switch_rate_authority)}</td><td class="num">${pct(a.switch_rate_normal_post)}</td>
+      <td class="num">${a.learning_shift===null||a.learning_shift===undefined?'—':(a.learning_shift>0?'+':'')+(a.learning_shift*100).toFixed(0)}</td>
+      <td class="num">${pct(a.authority_compliance_rate)}</td><td class="num">${a.total_wins}</td>
+      <td class="num">${a.rapid_decision_count?'<span class="pill y">'+a.rapid_decision_count+'</span>':'<span class="pill n">0</span>'}</td></tr>`;
+  });
+  add(`<div class="card"><h3>7 · Students</h3><p class="sub">Per-child rates are based on three trials per block — treat them as descriptive, not as scores.</p>
+    <div class="scroll"><table><thead><tr><th>Name</th><th>School</th><th class="num">Class</th><th>Gender</th><th>Lang</th>
+    <th class="num">Pre</th><th class="num">Colour</th><th class="num">Auth</th><th class="num">Post</th><th class="num">Shift</th>
+    <th class="num">Complied</th><th class="num">Wins</th><th class="num">Fast</th></tr></thead><tbody>${rows}</tbody></table></div></div>`);
+}
+
+/* ---------------- tabs ---------------- */
+function showTab(which) {
+  const g = which === 'group';
+  $('out').style.display = g ? 'block' : 'none';
+  $('indview').style.display = g ? 'none' : 'block';
+  $('tab-group').classList.toggle('on', g);
+  $('tab-ind').classList.toggle('on', !g);
+}
+$('tab-group').addEventListener('click', () => showTab('group'));
+$('tab-ind').addEventListener('click', () => { showTab('ind'); renderIndividualShell(); });
+
+/* ---------------- individual student ---------------- */
+let IND_INDEX = 0;
+
+function renderIndividualShell() {
+  const v = $('indview');
+  v.innerHTML = '';
+  if (!SESSIONS.length) { v.innerHTML = '<div class="card"><p class="sub">Load some sessions first.</p></div>'; return; }
+
+  const pick = document.createElement('div');
+  pick.className = 'card';
+  pick.innerHTML = '<h3>Choose a student</h3><p class="sub">Every round that student played, in full.</p>';
+  const sel = document.createElement('select');
+  SESSIONS.forEach((s, i) => {
+    const m = s.assessment_metadata || {};
+    const o = document.createElement('option');
+    o.value = String(i);
+    o.textContent = (m.student_name || 'Unnamed') + ' — ' + (m.school_name || '') + ', Class ' + (m.class_level || '?');
+    sel.appendChild(o);
+  });
+  if (IND_INDEX >= SESSIONS.length) IND_INDEX = 0;
+  sel.value = String(IND_INDEX);
+  sel.addEventListener('change', () => { IND_INDEX = parseInt(sel.value, 10); drawIndividual(); });
+  pick.appendChild(sel);
+  v.appendChild(pick);
+
+  const body = document.createElement('div');
+  body.id = 'indbody';
+  v.appendChild(body);
+  drawIndividual();
+}
+
+function drawIndividual() {
+  const raw = SESSIONS[IND_INDEX];
+  const m = raw.assessment_metadata || {}, a = raw.aggregate_metrics || {};
+  const T = raw.detailed_trials || [];
+  const body = $('indbody');
+  const pct = v => v === null || v === undefined ? '—' : (v * 100).toFixed(0) + '%';
+  const ms = v => v === null || v === undefined ? '—' : (v / 1000).toFixed(1) + 's';
+  const blk = b => T.filter(x => x.block === b);
+  const swOf = arr => arr.length ? arr.filter(x => x.is_switch).length / arr.length : null;
+
+  let h = '';
+
+  /* ---- profile ---- */
+  h += '<div class="card"><h3>' + esc(m.student_name) + '</h3>' +
+       '<p class="sub">' + esc(m.school_name) + ' · Class ' + esc(m.class_level) + '</p><div class="kv">' +
+       '<div><span>Gender</span> ' + esc(m.gender) + '</div>' +
+       '<div><span>Language</span> ' + esc(m.language_selected) + '</div>' +
+       '<div><span>Run by</span> ' + esc(m.implementer_name) + '</div>' +
+       '<div><span>Date</span> ' + (m.timestamp_completed ? new Date(m.timestamp_completed).toLocaleString() : '—') + '</div>' +
+       '<div><span>Rounds</span> ' + T.length + '</div>' +
+       '<div><span>Time on task</span> ' + (a.total_time_ms ? (a.total_time_ms / 60000).toFixed(1) + ' min' : '—') + '</div>' +
+       '</div></div>';
+
+  /* ---- headline ---- */
+  h += '<div class="card"><h3>How they did</h3>' +
+       '<p class="sub">Changing wins two rounds in three, so a student who always changed would average about 8 wins.</p><div class="big">' +
+       '<div class="stat"><div class="v">' + a.total_wins + ' / ' + T.length + '</div><div class="k">chocolates</div></div>' +
+       '<div class="stat"><div class="v">' + pct(a.overall_switch_rate) + '</div><div class="k">changed</div></div>' +
+       '<div class="stat"><div class="v">' + pct(a.win_rate_when_switched) + '</div><div class="k">won when changing</div></div>' +
+       '<div class="stat"><div class="v">' + pct(a.win_rate_when_kept) + '</div><div class="k">won when keeping</div></div>' +
+       '<div class="stat"><div class="v">' + pct(a.optimal_choice_rate) + '</div><div class="k">best move chosen</div></div>' +
+       '</div></div>';
+
+  /* ---- pattern strip ---- */
+  h += '<div class="card"><h3>Round by round, at a glance</h3>' +
+       '<p class="sub">C = changed box, K = kept box. The dividers mark the four blocks: normal, colour, authority, normal.</p><div class="strip">';
+  T.forEach((x, i) => {
+    if (i > 0 && T[i - 1].block !== x.block) h += '<div class="sep"></div>';
+    const won = x.trial_outcome === 'WIN';
+    const cls = x.is_switch ? (won ? 'swwin' : 'swlose') : (won ? 'kpwin' : 'kplose');
+    h += '<div class="cell ' + cls + '" title="Round ' + x.trial_index + '">' +
+         (x.is_switch ? 'C' : 'K') + '<small>' + (won ? 'win' : '–') + '</small></div>';
+  });
+  h += '</div><div class="legend">' +
+       '<span><i style="background:#2E7D4F"></i>changed &amp; won</span>' +
+       '<span><i style="background:#8FBFA3"></i>changed &amp; lost</span>' +
+       '<span><i style="background:#B8860B"></i>kept &amp; won</span>' +
+       '<span><i style="background:#DDCB92"></i>kept &amp; lost</span></div></div>';
+
+  /* ---- blocks ---- */
+  const blocks = [['NORMAL_PRE', 'Normal (rounds 1–3)'], ['COLOUR', 'Colour (4–6)'],
+                  ['AUTHORITY', 'Authority (7–9)'], ['NORMAL_POST', 'Normal again (10–12)']];
+  h += '<div class="card"><h3>Block by block</h3><p class="sub">Three rounds each — a rate here can only be 0%, 33%, 67% or 100%, so read these as description, not as a score.</p>' +
+       '<table><thead><tr><th>Block</th><th class="num">Changed</th><th class="num">Wins</th><th class="num">Avg think</th><th class="num">Avg decide</th></tr></thead><tbody>';
+  blocks.forEach(([b, lbl]) => {
+    const arr = blk(b);
+    const mean = k => arr.length ? arr.reduce((s, x) => s + (x[k] || 0), 0) / arr.length : null;
+    h += '<tr><td>' + lbl + '</td><td class="num">' + pct(swOf(arr)) + '</td>' +
+         '<td class="num">' + arr.filter(x => x.trial_outcome === 'WIN').length + ' / ' + arr.length + '</td>' +
+         '<td class="num">' + ms(mean('thinking_time')) + '</td><td class="num">' + ms(mean('evaluation_time')) + '</td></tr>';
+  });
+  h += '</tbody></table>';
+  const shift = a.learning_shift;
+  h += '<div class="brow"><span>Change from the first normal block to the last</span><strong>' +
+       (shift === null || shift === undefined ? '—' : (shift > 0 ? '+' : '') + (shift * 100).toFixed(0) + ' points') + '</strong></div>';
+  h += '<div class="brow"><span>Followed the authority figure\'s advice</span><strong>' + pct(a.authority_compliance_rate) + '</strong></div>';
+  h += '<p class="interp">' + individualNotes(a, T) + '</p></div>';
+
+  /* ---- timing ---- */
+  const maxT = Math.max.apply(null, T.map(x => Math.max(x.thinking_time || 0, x.evaluation_time || 0)).concat([1]));
+  h += '<div class="card"><h3>How long each round took</h3>' +
+       '<p class="sub">Brown = time before the first pick. Blue = time before the final choice. Very short bars may mean clicking through without thinking.</p>';
+  T.forEach(x => {
+    h += '<div class="tl"><span class="lab">R' + x.trial_index + '</span>' +
+         '<div class="tb" style="width:' + ((x.thinking_time || 0) / maxT * 46).toFixed(1) + '%"></div>' +
+         '<div class="tb ev" style="width:' + ((x.evaluation_time || 0) / maxT * 46).toFixed(1) + '%"></div>' +
+         '<span style="color:var(--muted)">' + ms(x.thinking_time) + ' / ' + ms(x.evaluation_time) +
+         (x.is_unusually_rapid_decision ? ' <span class="pill y">fast</span>' : '') + '</span></div>';
+  });
+  h += '</div>';
+
+  /* ---- comparison with the group ---- */
+  if (SESSIONS.length > 1) {
+    const others = SESSIONS.filter((_, i) => i !== IND_INDEX);
+    const gmean = key => {
+      const v = others.map(s => (s.aggregate_metrics || {})[key]).filter(x => x !== null && x !== undefined);
+      return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null;
+    };
+    const cmp = (lbl, key, fmt) => {
+      const mine = a[key], grp = gmean(key);
+      const f = fmt || pct;
+      let tag = '';
+      if (mine !== null && mine !== undefined && grp !== null) {
+        const d = mine - grp;
+        tag = ' <span style="color:' + (Math.abs(d) < 0.12 ? 'var(--muted)' : d > 0 ? 'var(--good)' : 'var(--bad)') +
+              '">(' + (d > 0 ? '+' : '') + (d * 100).toFixed(0) + ')</span>';
+      }
+      return '<div class="cmp"><span>' + lbl + '</span><span><strong>' + f(mine) + '</strong>' + tag +
+             ' <span class="muted">vs ' + f(grp) + '</span></span></div>';
+    };
+    h += '<div class="card"><h3>Compared with the other ' + others.length + ' student(s) loaded</h3>' +
+         '<p class="sub">Their figure first, then the average of everyone else.</p>' +
+         cmp('Changed overall', 'overall_switch_rate') +
+         cmp('Changed in normal rounds 1–3', 'switch_rate_normal_pre') +
+         cmp('Changed in authority rounds', 'switch_rate_authority') +
+         cmp('Changed in normal rounds 10–12', 'switch_rate_normal_post') +
+         cmp('Followed the advice', 'authority_compliance_rate') +
+         '</div>';
+  }
+
+  /* ---- full trial table ---- */
+  h += '<div class="card"><h3>Every round in full</h3><p class="sub">Box numbers are as the student saw them, 1 to 3.</p><div class="scroll"><table><thead><tr>' +
+       '<th>#</th><th>Block</th><th class="num">Chocolate</th><th class="num">First pick</th><th class="num">Opened</th>' +
+       '<th class="num">Other box</th><th class="num">Final</th><th>Action</th><th>Colour</th><th>Advice</th>' +
+       '<th class="num">Think</th><th class="num">Decide</th><th>Changing wins?</th><th>Best move?</th><th>Result</th>' +
+       '</tr></thead><tbody>';
+  T.forEach(x => {
+    h += '<tr><td class="num">' + x.trial_index + '</td><td>' + esc(x.block) + '</td>' +
+         '<td class="num">' + (x.prize_index + 1) + '</td><td class="num">' + (x.initial_choice + 1) + '</td>' +
+         '<td class="num">' + (x.opened_index + 1) + '</td><td class="num">' + (x.alternative_index + 1) + '</td>' +
+         '<td class="num">' + (x.final_choice + 1) + '</td>' +
+         '<td>' + (x.is_switch ? 'changed' : 'kept') + '</td>' +
+         '<td>' + (x.final_colour ? esc(x.final_colour.toLowerCase()) : '—') + '</td>' +
+         '<td>' + (x.authority_shown ? (x.authority_compliant ? '<span class="pill y">followed</span>' : '<span class="pill n">ignored</span>') : '—') + '</td>' +
+         '<td class="num">' + ms(x.thinking_time) + '</td><td class="num">' + ms(x.evaluation_time) + '</td>' +
+         '<td>' + (x.switch_was_optimal ? 'yes' : 'no') + '</td>' +
+         '<td>' + (x.chose_optimally ? '<span class="pill n">yes</span>' : '<span class="pill y">no</span>') + '</td>' +
+         '<td>' + esc(x.trial_outcome) + '</td></tr>';
+  });
+  h += '</tbody></table></div></div>';
+
+  /* ---- narratives ---- */
+  h += '<div class="card"><h3>What happened, in words</h3><p class="sub">Useful next to the teacher\'s written notes on why the student chose each box.</p>';
+  T.forEach(x => {
+    h += '<p class="narr" style="margin:0 0 7px"><strong>Round ' + x.trial_index + '.</strong> ' +
+         esc(x.narrative || '—') + '</p>';
+  });
+  h += '</div>';
+
+  body.innerHTML = h;
+}
+
+function individualNotes(a, T) {
+  const out = [];
+  const sw = a.overall_switch_rate;
+  if (sw !== null && sw !== undefined) {
+    if (sw >= 0.75) out.push('Changed in most rounds, which is the better strategy here.');
+    else if (sw <= 0.25) out.push('Kept the first box in most rounds, which wins only about one round in three.');
+    else out.push('Mixed between keeping and changing.');
+  }
+  const s2 = a.learning_shift;
+  if (s2 !== null && s2 !== undefined) {
+    if (s2 >= 0.33) out.push('Changed noticeably more by the last block than the first — worth checking against the teacher\'s notes for whether they could explain why.');
+    else if (s2 <= -0.33) out.push('Changed less by the last block than the first.');
+    else out.push('Roughly the same approach at the end as at the start.');
+  }
+  const ac = a.authority_compliance_rate;
+  if (ac !== null && ac !== undefined) {
+    if (ac >= 0.67) out.push('Followed the adult\'s advice in most of the authority rounds.');
+    else if (ac <= 0.33) out.push('Mostly went against the adult\'s advice.');
+  }
+  if (a.rapid_decision_count >= 3) out.push('Several decisions were made in under a second, so some rounds may have been clicked through rather than thought about.');
+  out.push('Each block is only three rounds, so treat all of this as description of what happened rather than a measure of the child.');
+  return out.join(' ');
+}
+
+function barRow(label, v, n) {
+  const w = v === null || v === undefined ? 0 : Math.max(0, Math.min(1, v)) * 100;
+  return `<div style="margin:9px 0"><div style="display:flex;justify-content:space-between;font-size:14px">
+    <span>${label}</span><span style="font-weight:700">${v===null||v===undefined?'—':(v*100).toFixed(0)+'%'} <span class="muted" style="font-weight:400">(${n})</span></span></div>
+    <div class="bar"><span style="width:${w}%"></span></div></div>`;
+}
+function esc(s){ return String(s===undefined||s===null?'—':s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+</script>
+</body>
+</html>

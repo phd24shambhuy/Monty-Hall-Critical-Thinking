@@ -1,0 +1,192 @@
+/* =====================================================================
+   styles.css — THE VIEW.
+   Layout rule: the three boxes must always fit on one screen, in both
+   portrait and landscape, without scrolling. Sizing is viewport-based.
+   ===================================================================== */
+
+:root {
+  --bg: #F6F0E4;
+  --panel: #FFFFFF;
+  --ink: #241C12;
+  --muted: #6B5D4A;
+  --accent: #8B5A2B;
+  --accent-dark: #6B4423;
+  --border: #DCCDB2;
+  --good: #2E7D4F;
+  --bad: #C0392B;
+  --cross: #F5271B;
+  --focus: #1B5FA8;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body { height: 100%; margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Noto Sans", "Noto Sans Devanagari", "Noto Sans Gujarati",
+               "Nirmala UI", "Shruti", "Mangal", system-ui, sans-serif;
+  font-size: clamp(15px, 2.2vh, 20px);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2vh 14px;
+}
+
+.panel {
+  width: 100%;
+  max-width: 780px;
+  background: var(--panel);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: clamp(14px, 3vh, 26px) clamp(14px, 3vw, 26px);
+}
+
+.wide { max-width: 960px; }
+
+h1 { font-size: clamp(20px, 3.4vh, 30px); margin: 0 0 6px; }
+h2 { font-size: clamp(17px, 2.7vh, 24px); margin: 0 0 10px; }
+p  { margin: 0 0 10px; }
+.center { text-align: center; }
+.muted { color: var(--muted); font-size: .88em; }
+
+/* ---------- progress ---------- */
+.prog { width: 100%; max-width: 780px; margin-bottom: 1.2vh; }
+.prog .lbl { font-size: .82em; color: var(--muted); margin-bottom: 4px; }
+.prog .bar { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.prog .bar span { display: block; height: 100%; background: var(--accent); transition: width .35s; }
+
+/* ---------- forms ---------- */
+label { display: block; font-size: .9em; color: var(--muted); margin: 10px 0 4px; }
+input, select {
+  width: 100%; padding: 11px 12px; font-size: 1em; font-family: inherit;
+  border: 2px solid var(--border); border-radius: 9px; background: #fff; color: var(--ink);
+}
+input:focus, select:focus { outline: 3px solid var(--focus); outline-offset: 1px; }
+
+.choice-row { display: flex; gap: 12px; }
+.choice {
+  flex: 1; padding: 13px; font-size: 1em; font-family: inherit; font-weight: 600;
+  border: 2px solid var(--border); border-radius: 10px; background: #fff;
+  color: var(--ink); cursor: pointer;
+}
+.choice.on { background: var(--good); border-color: var(--good); color: #fff; }
+.choice:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* ---------- buttons ---------- */
+.btn {
+  display: block; width: 100%; margin-top: 14px;
+  padding: clamp(12px, 2.2vh, 17px); font-size: clamp(16px, 2.4vh, 20px);
+  font-family: inherit; font-weight: 600; color: #fff;
+  background: var(--accent); border: none; border-radius: 11px; cursor: pointer;
+}
+.btn:hover:not(:disabled) { background: var(--accent-dark); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn:focus-visible { outline: 4px solid var(--focus); outline-offset: 2px; }
+.btn.secondary { background: #fff; color: var(--ink); border: 2px solid var(--border); }
+
+/* ---------- THE BOX ROW ----------
+   Always three across. Box width is the smaller of a width-based and a
+   height-based cap, so the row fits in portrait and in landscape.      */
+.boxrow {
+  display: flex; justify-content: center; align-items: flex-end;
+  gap: clamp(8px, 3vw, 26px);
+  width: 100%; margin: 1.6vh 0;
+}
+
+.box {
+  position: relative;
+  flex: 0 0 auto;
+  width: min(28vw, 30vh, 168px);
+  background: none; border: 3px solid transparent; border-radius: 12px;
+  padding: 6px 4px 2px; cursor: pointer; font-family: inherit;
+  transition: transform .12s, border-color .12s, background .12s;
+}
+.box img { display: block; width: 100%; height: auto; pointer-events: none; }
+.box .num { display: block; font-size: .82em; color: var(--muted); font-weight: 700; margin-top: 2px; }
+
+.box:hover:not(:disabled) { transform: translateY(-5px); background: rgba(139,90,43,.08); }
+.box:focus-visible { outline: 4px solid var(--focus); outline-offset: 2px; }
+.box.chosen { border-color: var(--accent); background: rgba(139,90,43,.14); }
+.box.dead { cursor: default; opacity: .85; }
+.box:disabled { cursor: default; }
+
+/* large red cross over the box the computer opened */
+.box .cross {
+  position: absolute; inset: 0; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.box .cross svg { width: 78%; height: 78%; }
+.box .cross line { stroke: var(--cross); stroke-width: 12; stroke-linecap: round; }
+/* white under-stroke keeps the cross readable against any box colour */
+.box .cross line.under { stroke: #FFFFFF; stroke-width: 19; opacity: .85; }
+.box.dead img { filter: saturate(.55) brightness(.94); }
+
+/* gradual opening animation */
+@keyframes lidLift { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: none; } }
+@keyframes crossIn { from { opacity: 0; transform: scale(1.5) rotate(-12deg); } to { opacity: 1; transform: none; } }
+.opening img { animation: lidLift .55s ease both; }
+.opening .cross { animation: crossIn .35s ease .5s both; }
+
+/* ---------- messages ---------- */
+.msg {
+  background: #FFF9EC; border: 2px solid var(--border); border-left: 7px solid var(--accent);
+  border-radius: 9px; padding: 10px 13px; margin-bottom: 1.2vh; font-size: .95em;
+}
+.instruct { font-size: clamp(15px, 2.3vh, 20px); text-align: center; margin: .8vh 0; }
+.instruct strong { color: var(--accent-dark); }
+
+/* ---------- authority ---------- */
+.auth {
+  display: flex; align-items: center; gap: 12px;
+  background: #FFF9EC; border: 2px solid var(--border); border-radius: 10px;
+  padding: 10px 13px; margin-bottom: 1.2vh;
+}
+.auth img {
+  width: clamp(48px, 9vh, 78px); height: clamp(48px, 9vh, 78px);
+  border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); flex-shrink: 0;
+}
+.auth p { margin: 0; font-size: .93em; }
+
+/* ---------- outcome ---------- */
+.outcome { text-align: center; font-size: clamp(18px, 3vh, 26px); font-weight: 700; margin: 1vh 0; }
+.outcome.win { color: var(--good); }
+.outcome.lose { color: var(--bad); }
+.result-img { display: block; margin: 0 auto; width: min(40vw, 26vh, 190px); }
+
+.enum {
+  border: 2px dashed var(--muted); border-radius: 9px;
+  padding: 9px 12px; margin-top: 1.2vh; font-size: .84em; color: var(--muted);
+}
+
+/* ---------- export ---------- */
+textarea.export {
+  width: 100%; height: 110px; margin-top: 10px; font-family: ui-monospace, monospace;
+  font-size: 11px; padding: 9px; border: 2px solid var(--border); border-radius: 9px; background: #FBF8F2;
+}
+
+.fade { animation: fadeIn .25s ease both; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ---------- landscape phones: compress everything vertically ---------- */
+@media (orientation: landscape) and (max-height: 520px) {
+  #app { padding: 1vh 10px; }
+  .panel { padding: 10px 14px; border-radius: 10px; }
+  .box { width: min(24vw, 46vh, 150px); }
+  .msg, .auth { padding: 7px 10px; margin-bottom: .8vh; }
+  .auth img { width: 46px; height: 46px; }
+  .btn { margin-top: 8px; padding: 10px; }
+  .enum { padding: 6px 9px; margin-top: .8vh; }
+  .prog { margin-bottom: .6vh; }
+  h1 { margin-bottom: 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
